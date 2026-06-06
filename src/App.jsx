@@ -747,11 +747,14 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
 
   const handleSave = async () => {
     try {
+      const { error } = await supabase.from('participantes')
+        .upsert({ nombre: nombre.trim(), password: existing ? existing.password : password, pronosticos: prons }, { onConflict: 'nombre', ignoreDuplicates: false });
+      if (error) { console.error('handleSave error:', error); }
+      // Also update local state
       if (existing) {
-        await setParticipantes(prev => prev.map(p => p.id === existing.id ? {...p, pronosticos: prons} : p));
+        setParticipantes(prev => prev.map(p => p.nombre === nombre.trim() ? {...p, pronosticos: prons} : p));
       } else {
-        const newP = { id: Date.now(), nombre: nombre.trim(), password, pronosticos: prons };
-        await setParticipantes(prev => [...prev, newP]);
+        setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombre.trim(), password, pronosticos: prons }]);
       }
       setStep("done");
     } catch(e) {
@@ -1604,8 +1607,7 @@ export default function App() {
   const [premioTexto, setPremioTexto] = useState("");
 
   // ── LOAD FROM SUPABASE ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const loadAll = async () => {
+  const loadAll = useCallback(async () => {
       try {
         // Load participantes
         const { data: parts } = await supabase.from('participantes').select('*');
@@ -1639,21 +1641,25 @@ export default function App() {
         }
       } catch(e) { console.error('Load error:', e); }
       setLoading(false);
-    };
+  }, []);
+
+  useEffect(() => {
     loadAll();
     // Realtime subscriptions
-    const sub = supabase.channel('changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participantes' }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos' }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bonus' }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracion' }, () => loadAll())
+    const sub = supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participantes' }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos' }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bonus' }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracion' }, loadAll)
       .subscribe();
     return () => supabase.removeChannel(sub);
   }, []);
 
   // ── SAVE HELPERS ────────────────────────────────────────────────────────────
   const saveParticipante = async (p) => {
-    await supabase.from('participantes').upsert({ id: typeof p.id === 'number' && p.id > 1000000000 ? undefined : p.id, nombre: p.nombre, password: p.password, pronosticos: p.pronosticos }, { onConflict: 'nombre' });
+    const { error } = await supabase.from('participantes')
+      .upsert({ nombre: p.nombre, password: p.password, pronosticos: p.pronosticos || {} }, { onConflict: 'nombre', ignoreDuplicates: false });
+    if (error) console.error('saveParticipante error:', error);
   };
   const savePartido = async (p) => {
     const { error } = await supabase.from('partidos').upsert(
