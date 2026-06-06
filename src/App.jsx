@@ -1615,7 +1615,7 @@ export default function App() {
           setParticipantes(parts.map(p => ({ id: p.id, nombre: p.nombre, password: p.password, pronosticos: p.pronosticos || {} })));
         }
         // Load partidos
-        const { data: pars } = await supabase.from('partidos').select('*');
+        const { data: pars } = await supabase.from('partidos').select('*').order('orden', { ascending: true, nullsFirst: false });
         if (pars && pars.length > 0) {
           setPartidos(pars.map(p => ({ id: p.id, jornada: p.jornada, local: p.local, visita: p.visita, especial: p.especial, resultado: p.resultado, esBonus: p.es_bonus, texto: p.texto, opciones: p.opciones })));
         }
