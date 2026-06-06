@@ -745,13 +745,19 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
     }
   };
 
-  const handleSave = () => {
-    if (existing) {
-      setParticipantes(prev => prev.map(p => p.id === existing.id ? {...p, pronosticos: prons} : p));
-    } else {
-      setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombre.trim(), password, pronosticos: prons }]);
+  const handleSave = async () => {
+    try {
+      if (existing) {
+        await setParticipantes(prev => prev.map(p => p.id === existing.id ? {...p, pronosticos: prons} : p));
+      } else {
+        const newP = { id: Date.now(), nombre: nombre.trim(), password, pronosticos: prons };
+        await setParticipantes(prev => [...prev, newP]);
+      }
+      setStep("done");
+    } catch(e) {
+      console.error("Save error:", e);
+      setStep("done");
     }
-    setStep("done");
   };
 
   const totalCompletadas = JORNADAS.filter(j => {
@@ -1650,7 +1656,11 @@ export default function App() {
     await supabase.from('participantes').upsert({ id: typeof p.id === 'number' && p.id > 1000000000 ? undefined : p.id, nombre: p.nombre, password: p.password, pronosticos: p.pronosticos }, { onConflict: 'nombre' });
   };
   const savePartido = async (p) => {
-    await supabase.from('partidos').upsert({ id: p.id, jornada: p.jornada, local: p.local, visita: p.visita, especial: p.especial, resultado: p.resultado, es_bonus: p.esBonus, texto: p.texto, opciones: p.opciones });
+    const { error } = await supabase.from('partidos').upsert(
+      { id: p.id, jornada: p.jornada, local: p.local, visita: p.visita, especial: p.especial || false, resultado: p.resultado || null, es_bonus: p.esBonus || false, texto: p.texto || null, opciones: p.opciones || null },
+      { onConflict: 'id' }
+    );
+    if (error) console.error('savePartido error:', error);
   };
   const saveBonus = async (b) => {
     await supabase.from('bonus').upsert({ id: b.id, jornada: b.jornada, texto: b.texto, opciones: b.opciones, resultado: b.resultado });
@@ -1666,9 +1676,21 @@ export default function App() {
     for (const p of next) await saveParticipante(p);
   };
   const setPartidosDB = async (fn) => {
-    const next = typeof fn === 'function' ? fn(partidos) : fn;
+    const prev = partidos;
+    const next = typeof fn === 'function' ? fn(prev) : fn;
     setPartidos(next);
-    for (const p of next) await savePartido(p);
+    // Only save changed partidos
+    for (const p of next) {
+      const old = prev.find(x => x.id === p.id);
+      const changed = !old || JSON.stringify(old) !== JSON.stringify(p);
+      if (changed) await savePartido(p);
+    }
+    // Delete removed partidos
+    for (const p of prev) {
+      if (!next.find(x => x.id === p.id)) {
+        await supabase.from('partidos').delete().eq('id', p.id);
+      }
+    }
   };
   const setBonusDB = async (fn) => {
     const next = typeof fn === 'function' ? fn(bonus) : fn;
