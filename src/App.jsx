@@ -389,7 +389,7 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
                 <th key={p.id} className="border-b border-r"
                   style={{ minWidth:36, padding:"8px 4px", background: p.especial ? "rgba(58,42,0,0.65)" : "rgba(0,8,58,0.65)", borderColor:"#1a3a8a" }}>
                   <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:90, fontSize:10, lineHeight:1.3, whiteSpace:"nowrap", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color: p.especial ? "#fcd34d" : "#4d8aff", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
-                    {esFinal ? "Partido" : `${p.local} - ${p.visita}`}
+                    {`${p.local} - ${p.visita}`}
                   </div>
                 </th>
               ))}
@@ -457,13 +457,13 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
 
                 {/* Total */}
                 <td className="text-center px-2 py-1.5 font-black"
-                  style={{ border:"1px solid #005a2a", background: idx%2===0 ? "#002a15" : "#001a0d", color:"#00e676", fontSize:13, fontWeight:700 }}>{p.total}</td>
+                  style={{ border:"1px solid #005a2a", background: idx%2===0 ? "#002a15" : "#001a0d", color:"#00e676", fontSize:13, fontWeight:700 }}>{p.total ?? 0}</td>
 
                 {/* Por jornada */}
                 {JORNADAS.map(j => (
                   <td key={j.id} className="text-center px-1 py-1.5 font-bold"
                     style={{ border:"1px solid #3a3000", background: j.id===jornadaSel ? "rgba(251,191,36,0.2)" : idx%2===0 ? "#1a1500" : "#110f00", color: j.id===jornadaSel ? "#fbbf24" : "#d4a800" }}>
-                    {p.byJornada[j.id]||""}
+                    {p.byJornada[j.id] ?? 0}
                   </td>
                 ))}
               </tr>
