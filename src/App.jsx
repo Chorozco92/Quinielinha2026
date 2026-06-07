@@ -289,6 +289,9 @@ const JornadaTabs = ({ jornadaActiva, setJornadaActiva, partidos, bonus, mode })
 
 // ─── TABLA COMPARATIVA ────────────────────────────────────────────────────────
 
+const INCISO = ["A","B","C"];
+const esJornadaFinal = (jid) => jid === "tercero" || jid === "final";
+
 const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) => {
   const [jornadaSel, setJornadaSel] = useState(jornadasVisibles[0] || "j1");
   const visiblesActivas = JORNADAS.filter(j => jornadasVisibles.includes(j.id));
@@ -297,7 +300,14 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
     <div className="text-center py-8 text-zinc-500 text-sm">El organizador aún no ha activado la visibilidad de pronósticos.</div>
   );
 
+  const esFinal = esJornadaFinal(jornadaSel);
   const jornadaPartidos = partidos.filter(p => p.jornada === jornadaSel && !p.esBonus);
+  const jornadaBonus = (bonus[jornadaSel] || []);
+
+  // Columnas: para finales, partido + bonus; para el resto, solo partidos
+  const colsPartido = jornadaPartidos;
+  const colsBonus = esFinal ? jornadaBonus : [];
+
   const standings = participantes
     .map(p => { const { total, byJornada } = calcPuntos(p.pronosticos, partidos, bonus); return { ...p, total, byJornada }; })
     .sort((a, b) => {
@@ -306,6 +316,7 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
       return 0;
     });
 
+  // Para partido normal
   const getCellBg = (pron, resultado, especial) => {
     if (!resultado) return especial ? "#1a1000" : "#111";
     const ok = pron === resultado;
@@ -318,11 +329,20 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
     if (especial) return ok ? "#ffd700" : "#ff4d4d";
     return ok ? "#00ff87" : "#ff4d4d";
   };
-  const getCellStyle = (pron, resultado, especial) => {
-    if (!resultado) return especial ? "bg-amber-900/30" : "bg-zinc-800";
-    const ok = pron === resultado;
-    if (especial) return ok ? "bg-amber-400" : "bg-red-700";
-    return ok ? "bg-emerald-600" : "bg-red-800/80";
+
+  // Para bonus: convierte valor almacenado → inciso visible (A/B/C)
+  const getBonusInciso = (pron, opciones) => {
+    if (!pron) return null;
+    const idx = opciones.indexOf(pron);
+    return idx >= 0 ? INCISO[idx] : pron;
+  };
+  const getBonusCellBg = (pron, resultado) => {
+    if (!resultado) return "#111";
+    return pron === resultado ? "#002a14" : "#1a0000";
+  };
+  const getBonusCellColor = (pron, resultado) => {
+    if (!resultado) return "#aaa";
+    return pron === resultado ? "#00ff87" : "#ff4d4d";
   };
 
   return (
@@ -336,12 +356,12 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
         </div>
       </div>
       <div className="flex gap-1 overflow-x-auto pb-1">
-        {visiblesActivas.map((j, idx) => {
+        {visiblesActivas.map((j) => {
           const col = ["#00A651","#0033FF","#FF0000","#AECC00","#00A651","#0033FF","#FF0000","#00A651","#0033FF"][JORNADAS.findIndex(jj=>jj.id===j.id) % 9];
           const activa = jornadaSel===j.id;
           return (
-          <button key={j.id} onClick={() => setJornadaSel(j.id)}
-            className="shrink-0 px-3 py-1.5 transition-all duration-200 cursor-pointer rounded-xl"
+            <button key={j.id} onClick={() => setJornadaSel(j.id)}
+              className="shrink-0 px-3 py-1.5 transition-all duration-200 cursor-pointer rounded-xl"
               style={{
                 fontFamily:"'Bebas Neue', cursive",
                 fontSize:13,
@@ -351,8 +371,8 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
                 border: activa ? `1px solid ${col}` : "1px solid rgba(255,255,255,0.1)",
                 boxShadow: activa ? `0 0 10px ${col}44` : "none",
               }}>
-            {j.label}
-          </button>
+              {j.label}
+            </button>
           );
         })}
       </div>
@@ -360,27 +380,41 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
         <table className="text-xs border-collapse" style={{ minWidth:"max-content" }}>
           <thead>
             <tr>
+              {/* Columna participante */}
               <th className="sticky left-0 z-20 px-3 py-2 text-left font-bold border-b border-r min-w-[130px]"
                 style={{ background:"rgba(0,8,58,0.6)", color:"#4d8aff", borderColor:"#1a3a8a", fontSize:11, fontWeight:700, letterSpacing:"0.03em" }}>Participante</th>
-              {jornadaPartidos.map((p, mIdx) => {
-                const mundialBg = "#00083a";
-                const mundialTxt = "#4d8aff";
-                return (
+
+              {/* Columnas de partidos */}
+              {colsPartido.map((p) => (
                 <th key={p.id} className="border-b border-r"
-                  style={{ minWidth:36, padding:"8px 4px", background: p.especial ? "rgba(58,42,0,0.65)" : "rgba(0,8,58,0.65)", borderColor: "#1a3a8a" }}>
-                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:150, fontSize:10, lineHeight:1.3, whiteSpace:"nowrap", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color: p.especial ? "#fcd34d" : mundialTxt, fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
-                    {p.local} - {p.visita}
+                  style={{ minWidth:36, padding:"8px 4px", background: p.especial ? "rgba(58,42,0,0.65)" : "rgba(0,8,58,0.65)", borderColor:"#1a3a8a" }}>
+                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:90, fontSize:10, lineHeight:1.3, whiteSpace:"nowrap", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color: p.especial ? "#fcd34d" : "#4d8aff", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
+                    {esFinal ? "Partido" : `${p.local} - ${p.visita}`}
                   </div>
                 </th>
-                );
-              })}
+              ))}
+
+              {/* Columnas bonus (solo tercero/final) */}
+              {colsBonus.map((b, bIdx) => (
+                <th key={b.id} className="border-b border-r"
+                  style={{ minWidth:36, padding:"8px 4px", background:"rgba(58,30,0,0.65)", borderColor:"#1a3a8a" }}>
+                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:90, fontSize:10, lineHeight:1.3, whiteSpace:"nowrap", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color:"#fcd34d", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
+                    Pregunta {bIdx + 1}
+                  </div>
+                </th>
+              ))}
+
+              {/* TOTAL */}
               <th className="border-b border-r px-2 py-2 font-black text-center"
                 style={{ background:"#002a15", color:"#00e676", borderColor:"#005a2a", fontSize:12, fontWeight:700 }}>TOTAL</th>
+
+              {/* Columnas por jornada */}
               {JORNADAS.map(j => (
-                <th key={j.id} className={`border-b border-r px-1 py-2 text-center`}
+                <th key={j.id} className="border-b border-r px-1 py-2 text-center"
                   style={{ minWidth:32, background: j.id===jornadaSel ? "rgba(251,191,36,0.25)" : "#1a1500", borderColor: j.id===jornadaSel ? "rgba(251,191,36,0.5)" : "#3a3000" }}>
-                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:60, fontSize:10, color: j.id===jornadaSel ? "#fbbf24" : "#d4a800", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}
-                    className="font-bold">{j.label}</div>
+                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:60, fontSize:10, color: j.id===jornadaSel ? "#fbbf24" : "#d4a800", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
+                    {j.label}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -388,21 +422,44 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
           <tbody>
             {standings.map((p, idx) => (
               <tr key={p.id}>
+                {/* Nombre */}
                 <td className="sticky left-0 z-10 px-3 py-2 font-bold border-r whitespace-nowrap"
                   style={{ background: idx%2===0 ? "#000d3d" : "#00061f", color:"#a0bfff", borderColor:"#1a3a8a" }}>
                   {idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":`${idx+1}.`} {p.nombre}
                 </td>
-                {jornadaPartidos.map(part => {
+
+                {/* Celdas de partidos */}
+                {colsPartido.map(part => {
                   const pron = p.pronosticos[part.id];
+                  // Para tercero/final mostrar solo L o V (sin E)
+                  const display = esFinal
+                    ? (pron === "L" ? "L" : pron === "V" ? "V" : pron ? pron : null)
+                    : pron;
                   return (
-                    <td key={part.id} className="rajdhani text-center px-1 py-1"
-                      style={{ minWidth:36, border:"1px solid rgba(255,255,255,0.1)", background:getCellBg(pron, part.resultado, part.especial), color:getCellTextColor(pron, part.resultado, part.especial), border: "1px solid rgba(255,255,255,0.5)" }}>
-                      {pron || <span style={{ color:"#ffffff" }}>—</span>}
+                    <td key={part.id} className="text-center px-1 py-1 font-black"
+                      style={{ minWidth:36, border:"1px solid rgba(255,255,255,0.5)", background:getCellBg(pron, part.resultado, part.especial), color:getCellTextColor(pron, part.resultado, part.especial) }}>
+                      {display || <span style={{ color:"#555" }}>—</span>}
                     </td>
                   );
                 })}
+
+                {/* Celdas bonus (A/B/C) */}
+                {colsBonus.map(bon => {
+                  const pron = p.pronosticos[bon.id];
+                  const inciso = getBonusInciso(pron, bon.opciones);
+                  return (
+                    <td key={bon.id} className="text-center px-1 py-1 font-black"
+                      style={{ minWidth:36, border:"1px solid rgba(255,255,255,0.5)", background:getBonusCellBg(pron, bon.resultado), color:getBonusCellColor(pron, bon.resultado) }}>
+                      {inciso || <span style={{ color:"#555" }}>—</span>}
+                    </td>
+                  );
+                })}
+
+                {/* Total */}
                 <td className="text-center px-2 py-1.5 font-black"
                   style={{ border:"1px solid #005a2a", background: idx%2===0 ? "#002a15" : "#001a0d", color:"#00e676", fontSize:13, fontWeight:700 }}>{p.total}</td>
+
+                {/* Por jornada */}
                 {JORNADAS.map(j => (
                   <td key={j.id} className="text-center px-1 py-1.5 font-bold"
                     style={{ border:"1px solid #3a3000", background: j.id===jornadaSel ? "rgba(251,191,36,0.2)" : idx%2===0 ? "#1a1500" : "#110f00", color: j.id===jornadaSel ? "#fbbf24" : "#d4a800" }}>
@@ -905,19 +962,35 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
           const total = nonBonusItems.length;
           const mundialColors = ["#00A651","#0033FF","#FF0000","#AECC00"];
           const borderColor = mundialColors[Math.floor((nonBonusIdx / Math.max(total,1)) * 4) % 4];
+          const esFinalJornada = jornadaActiva === "tercero" || jornadaActiva === "final";
+          const bonusIdxLocal = allItems.filter(i => i.esBonus).indexOf(p);
+
           if (p.esBonus) return (
             <div key={p.id} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-2">
-              <div className="flex items-center gap-2"><Badge color="gold">BONUS</Badge><span className="text-sm text-white font-medium">{p.texto}</span></div>
+              <div className="flex items-center gap-2">
+                <Badge color="gold">BONUS</Badge>
+                <span className="text-sm text-white font-medium">{p.texto}</span>
+              </div>
               <div className="flex gap-2 flex-wrap">
-                {p.opciones.map(op => (
+                {p.opciones.map((op, opIdx) => (
                   <button key={op} onClick={() => !dis && setProns(prev => ({...prev,[p.id]:op}))}
                     className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${dis?"opacity-50 cursor-not-allowed":"cursor-pointer"} ${val===op?"bg-amber-500 text-black":"bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700"}`}>
-                    {op}
+                    {["A","B","C"][opIdx]}. {op}
                   </button>
                 ))}
               </div>
             </div>
           );
+
+          // Opciones del partido: sin Empate para tercero/final
+          const opcionesPartido = esFinalJornada
+            ? [{k:"L", title:p.local}, {k:"V", title:p.visita}]
+            : [{k:"L", title:p.local}, {k:"E", title:"Empate"}, {k:"V", title:p.visita}];
+
+          const btnColors = { L:"#7c3aed", E:"#f97316", V:"#84cc16" };
+          const btnBorders = { L:"#a855f7", E:"#fb923c", V:"#a3e635" };
+          const btnShadows = { L:"#7c3aed88", E:"#f9731688", V:"#84cc1688" };
+
           return (
             <div key={p.id} className="rounded-xl"
               style={{ border:`1.5px solid ${borderColor}`, background:`${borderColor}11`, padding:"8px 12px" }}>
@@ -928,28 +1001,16 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
                   <span style={{ fontFamily:"'Raleway', sans-serif", fontSize:13, fontWeight:700, letterSpacing:"0.04em", lineHeight:1.3, wordBreak:"break-word", textAlign:"right" }}>{p.local||"—"}</span>
                 </span>
                 <div className="flex gap-1 shrink-0">
-                  {[{k:"L"},{k:"E"},{k:"V"}].map(opt => (
+                  {opcionesPartido.map(opt => (
                     <button key={opt.k} onClick={() => !dis && setProns(prev => ({...prev,[p.id]:opt.k}))}
-                      title={opt.k==="L"?p.local:opt.k==="E"?"Empate":p.visita}
+                      title={opt.title}
                       className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${dis?"opacity-50 cursor-not-allowed":"cursor-pointer"}`}
                       style={{
-                        background: val===opt.k
-                          ? opt.k==="L" ? "#7c3aed"
-                          : opt.k==="E" ? "#f97316"
-                          : "#84cc16"
-                          : "rgba(255,255,255,0.08)",
+                        background: val===opt.k ? btnColors[opt.k] : "rgba(255,255,255,0.08)",
                         color: val===opt.k ? (opt.k==="V" ? "#000" : "#fff") : "rgba(255,255,255,0.5)",
-                        border: val===opt.k
-                          ? opt.k==="L" ? "2px solid #a855f7"
-                          : opt.k==="E" ? "2px solid #fb923c"
-                          : "2px solid #a3e635"
-                          : "1px solid rgba(255,255,255,0.15)",
+                        border: val===opt.k ? `2px solid ${btnBorders[opt.k]}` : "1px solid rgba(255,255,255,0.15)",
                         transform: val===opt.k ? "scale(1.1)" : "scale(1)",
-                        boxShadow: val===opt.k
-                          ? opt.k==="L" ? "0 0 10px #7c3aed88"
-                          : opt.k==="E" ? "0 0 10px #f9731688"
-                          : "0 0 10px #84cc1688"
-                          : "none"
+                        boxShadow: val===opt.k ? `0 0 10px ${btnShadows[opt.k]}` : "none"
                       }}>{opt.k}</button>
                   ))}
                 </div>
