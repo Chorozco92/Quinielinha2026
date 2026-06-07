@@ -385,14 +385,24 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
                 style={{ background:"rgba(0,8,58,0.6)", color:"#4d8aff", borderColor:"#1a3a8a", fontSize:11, fontWeight:700, letterSpacing:"0.03em" }}>Participante</th>
 
               {/* Columnas de partidos */}
-              {colsPartido.map((p) => (
-                <th key={p.id} className="border-b border-r"
-                  style={{ minWidth:36, padding:"8px 4px", background: p.especial ? "rgba(58,42,0,0.65)" : "rgba(0,8,58,0.65)", borderColor:"#1a3a8a" }}>
-                  <div style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:90, fontSize:10, lineHeight:1.3, whiteSpace:"nowrap", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color: p.especial ? "#fcd34d" : "#4d8aff", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
-                    {`${p.local} - ${p.visita}`}
-                  </div>
-                </th>
-              ))}
+              {colsPartido.map((p) => {
+                // Abreviar nombres largos: tomar las primeras 3 letras de cada palabra
+                const abreviar = (nombre) => {
+                  if (!nombre) return "—";
+                  const palabras = nombre.trim().split(/\s+/);
+                  if (palabras.length === 1) return nombre.length > 6 ? nombre.slice(0, 6) : nombre;
+                  return palabras.map(w => w.slice(0, 3)).join(".");
+                };
+                const etiqueta = `${abreviar(p.local)}-${abreviar(p.visita)}`;
+                return (
+                  <th key={p.id} className="border-b border-r"
+                    style={{ minWidth:40, maxWidth:40, padding:"8px 2px", background: p.especial ? "rgba(58,42,0,0.65)" : "rgba(0,8,58,0.65)", borderColor:"#1a3a8a" }}>
+                    <div title={`${p.local} - ${p.visita}`} style={{ writingMode:"vertical-rl", transform:"rotate(180deg)", height:90, fontSize:9, lineHeight:1.2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxHeight:90, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"center", width:"100%", color: p.especial ? "#fcd34d" : "#4d8aff", fontFamily:"'DM Sans', sans-serif", fontWeight:700 }}>
+                      {etiqueta}
+                    </div>
+                  </th>
+                );
+              })}
 
               {/* Columnas bonus (solo tercero/final) */}
               {colsBonus.map((b, bIdx) => (
