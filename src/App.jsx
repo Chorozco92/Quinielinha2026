@@ -643,6 +643,50 @@ const Evolucion = ({ participantes, partidos, bonus }) => {
 };
 // ─── VIEW: TABLA ──────────────────────────────────────────────────────────────
 
+const ParticipanteCard = ({ p, i }) => {
+  const [open, setOpen] = React.useState(false);
+  const borderColor = i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":"#ffffff";
+  return (
+    <div className="flex items-center gap-3">
+      <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ background:"rgba(0,0,0,0.6)", border:`3px solid ${borderColor}` }}>
+        <span className="font-black text-lg leading-none" style={{ color: borderColor }}>
+          {i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}`}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 flex-1 px-3 py-2 rounded-xl"
+        style={{ background:"rgba(0,0,0,0.6)", border:`3px solid ${borderColor}` }}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 cursor-pointer" onClick={() => setOpen(!open)}>
+            <p className="font-black text-white truncate" style={{ fontFamily:"'Russo One', sans-serif", fontSize:18 }}>{p.nombre}</p>
+            <div className="flex items-center gap-2 shrink-0">
+              <p className="font-black text-emerald-400" style={{ fontSize:28 }}>{p.total}<span className="text-sm text-zinc-600 font-normal ml-0.5">pts</span></p>
+              <span style={{ color:"rgba(255,255,255,0.3)", fontSize:14 }}>{open?"▲":"▼"}</span>
+            </div>
+          </div>
+          {open && (
+            <div className="mt-2 pt-2 border-t border-white/10">
+              <p style={{ fontSize:10, lineHeight:1.8 }}>
+                {JORNADAS.filter(j => p.byJornada[j.id] > 0).map((j, idx, arr) => {
+                  const col = ["#00A651","#0033FF","#FF0000","#AECC00","#00A651","#0033FF","#FF0000","#00A651","#0033FF"][JORNADAS.indexOf(j)%9];
+                  return (
+                    <span key={j.id}>
+                      <span style={{ color:"rgba(255,255,255,0.45)" }}>{j.label.replace("Jornada ","J").replace("Dieciseisavos","16s").replace("Semifinal","SF").replace("3er Lugar","3L")}</span>
+                      <span style={{ color:col, fontWeight:700 }}> {p.byJornada[j.id]}</span>
+                      {idx < arr.length-1 && <span style={{ color:"#333", margin:"0 4px" }}>•</span>}
+                    </span>
+                  );
+                })}
+                {JORNADAS.filter(j => p.byJornada[j.id] > 0).length === 0 && <span style={{ color:"#444" }}>Sin puntos aún</span>}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TablaView = ({ participantes, partidos, bonus, jornadasVisibles, premioVisible, premioTexto }) => {
   const [subTab, setSubTab] = useState("comparativa");
   const [pagina, setPagina] = useState(0);
@@ -683,55 +727,9 @@ const TablaView = ({ participantes, partidos, bonus, jornadasVisibles, premioVis
         <div className="text-center py-16 text-zinc-500"><div className="text-5xl mb-3">⚽</div><p>Aún no hay participantes</p></div>
       ) : (
         <div className="space-y-2">
-          {paginados.map((p, i) => {
-            const borderColor = i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":"#ffffff";
-            return (
-              <div key={p.id} className="flex items-center gap-3">
-                {/* Posición con recuadro */}
-                <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background:"rgba(0,0,0,0.6)", border:`3px solid ${borderColor}` }}>
-                  <span className="font-black text-lg leading-none" style={{ color: borderColor }}>
-                    {i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}`}
-                  </span>
-                </div>
-                {/* Recuadro */}
-                <div className="flex items-center gap-3 flex-1 px-3 py-2 rounded-xl"
-                  style={{ background:"rgba(0,0,0,0.6)", border:`3px solid ${borderColor}` }}>
-                  {(() => {
-                    const [open, setOpen] = React.useState(false);
-                    return (
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 cursor-pointer" onClick={() => setOpen(!open)}>
-                          <p className="font-black text-white truncate" style={{ fontFamily:"'Russo One', sans-serif", fontSize:18 }}>{p.nombre}</p>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <p className="font-black text-emerald-400" style={{ fontSize:28 }}>{p.total}<span className="text-sm text-zinc-600 font-normal ml-0.5">pts</span></p>
-                            <span style={{ color:"rgba(255,255,255,0.3)", fontSize:14 }}>{open?"▲":"▼"}</span>
-                          </div>
-                        </div>
-                        {open && (
-                          <div className="mt-2 pt-2 border-t border-white/10">
-                            <p style={{ fontSize:10, lineHeight:1.8 }}>
-                              {JORNADAS.filter(j => p.byJornada[j.id] > 0).map((j, idx, arr) => {
-                                const col = ["#00A651","#0033FF","#FF0000","#AECC00","#00A651","#0033FF","#FF0000","#00A651","#0033FF"][JORNADAS.indexOf(j)%9];
-                                return (
-                                  <span key={j.id}>
-                                    <span style={{ color:"rgba(255,255,255,0.45)" }}>{j.label.replace("Jornada ","J").replace("Dieciseisavos","16s").replace("Semifinal","SF").replace("3er Lugar","3L")}</span>
-                                    <span style={{ color:col, fontWeight:700 }}> {p.byJornada[j.id]}</span>
-                                    {idx < arr.length-1 && <span style={{ color:"#333", margin:"0 4px" }}>•</span>}
-                                  </span>
-                                );
-                              })}
-                              {JORNADAS.filter(j => p.byJornada[j.id] > 0).length === 0 && <span style={{ color:"#444" }}>Sin puntos aún</span>}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            );
-          })}
+          {paginados.map((p, i) => (
+            <ParticipanteCard key={p.id} p={p} i={i} />
+          ))}
           {hayMas && (
             <button onClick={() => setPagina(p => p + 1)}
               className="w-full py-2.5 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all cursor-pointer text-sm font-bold">
