@@ -820,14 +820,15 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
 
   const handleSave = async () => {
     try {
+      const pronosticosActuales = pronsRef.current;
       const { error } = await supabase.from('participantes')
-        .upsert({ nombre: nombre.trim(), password: existing ? existing.password : password, pronosticos: prons }, { onConflict: 'nombre', ignoreDuplicates: false });
+        .upsert({ nombre: nombre.trim(), password: existing ? existing.password : password, pronosticos: pronosticosActuales }, { onConflict: 'nombre', ignoreDuplicates: false });
       if (error) { console.error('handleSave error:', error); }
       // Also update local state
       if (existing) {
-        setParticipantes(prev => prev.map(p => p.nombre === nombre.trim() ? {...p, pronosticos: prons} : p));
+        setParticipantes(prev => prev.map(p => p.nombre === nombre.trim() ? {...p, pronosticos: pronosticosActuales} : p));
       } else {
-        setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombre.trim(), password, pronosticos: prons }]);
+        setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombre.trim(), password, pronosticos: pronosticosActuales }]);
       }
       setStep("done");
     } catch(e) {
