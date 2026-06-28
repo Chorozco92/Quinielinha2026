@@ -781,6 +781,14 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [prons, setProns] = useState({});
+  const pronsRef = React.useRef({});
+  const setPronsSafe = (updater) => {
+    setProns(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      pronsRef.current = next;
+      return next;
+    });
+  };
   const [jornadaActiva, setJornadaActiva] = useState("j1");
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -798,14 +806,14 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
     if (!nombre.trim()) return;
     if (existing) {
       if (passwordInput !== existing.password) { setError("Contraseña incorrecta."); return; }
-      setProns({...existing.pronosticos});
+      setPronsSafe({...existing.pronosticos});
       setCurrentUser(existing);
       setStep("fill");
     } else {
       if (participantes.length >= LIMITE_PARTICIPANTES) { setError(`La quiniela ya alcanzó el límite de ${LIMITE_PARTICIPANTES} participantes.`); return; }
       if (password.length !== 6) { setError("La contraseña debe tener exactamente 6 caracteres."); return; }
       setCurrentUser(null);
-      setProns({});
+      setPronsSafe({});
       setStep("fill");
     }
   };
@@ -981,7 +989,7 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
               </div>
               <div className="flex gap-2 flex-wrap">
                 {p.opciones.map((op, opIdx) => (
-                  <button key={op} onClick={() => !dis && setProns(prev => ({...prev,[p.id]:op}))}
+                  <button key={op} onClick={() => !dis && setPronsSafe(prev => ({...prev,[p.id]:op}))}
                     className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${dis?"opacity-50 cursor-not-allowed":"cursor-pointer"} ${val===op?"bg-amber-500 text-black":"bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700"}`}>
                     {["A","B","C"][opIdx]}. {op}
                   </button>
@@ -1010,7 +1018,7 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
                 </span>
                 <div className="flex gap-1 shrink-0">
                   {opcionesPartido.map(opt => (
-                    <button key={opt.k} onClick={() => !dis && setProns(prev => ({...prev,[p.id]:opt.k}))}
+                    <button key={opt.k} onClick={() => !dis && setPronsSafe(prev => ({...prev,[p.id]:opt.k}))}
                       title={opt.title}
                       className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${dis?"opacity-50 cursor-not-allowed":"cursor-pointer"}`}
                       style={{
@@ -1716,7 +1724,8 @@ export default function App() {
     loadAll();
     // Realtime subscriptions
     const sub = supabase.channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participantes' }, loadAll)
+      // NOTA: 'participantes' excluida del realtime para no borrar votos en progreso.
+      // Los participantes se recargan solo al abrir la app, no en tiempo real.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos' }, loadAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bonus' }, loadAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracion' }, loadAll)
