@@ -840,14 +840,23 @@ const PronosticosView = ({ participantes, setParticipantes, partidos, bonus, jor
   const handleSave = async () => {
     try {
       const pronosticosActuales = pronsRef.current;
-      const { error } = await supabase.from('participantes')
-        .upsert({ nombre: nombre.trim(), password: existing ? existing.password : password, pronosticos: pronosticosActuales }, { onConflict: 'nombre', ignoreDuplicates: false });
-      if (error) { console.error('handleSave error:', error); }
-      // Also update local state
-      if (existing) {
-        setParticipantes(prev => prev.map(p => p.nombre === nombre.trim() ? {...p, pronosticos: pronosticosActuales} : p));
+      const nombreTrim = nombre.trim();
+      // Buscar por nombre case-insensitive para evitar duplicados
+      const { data: existingDB } = await supabase.from('participantes')
+        .select('id').ilike('nombre', nombreTrim).single();
+      if (existingDB) {
+        await supabase.from('participantes')
+          .update({ password: existing ? existing.password : password, pronosticos: pronosticosActuales })
+          .eq('id', existingDB.id);
       } else {
-        setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombre.trim(), password, pronosticos: pronosticosActuales }]);
+        await supabase.from('participantes')
+          .insert({ nombre: nombreTrim, password, pronosticos: pronosticosActuales });
+      }
+      // Actualizar estado local
+      if (existing) {
+        setParticipantes(prev => prev.map(p => p.nombre.toLowerCase() === nombreTrim.toLowerCase() ? {...p, pronosticos: pronosticosActuales} : p));
+      } else {
+        setParticipantes(prev => [...prev, { id: Date.now(), nombre: nombreTrim, password, pronosticos: pronosticosActuales }]);
       }
       setStep("done");
     } catch(e) {
@@ -1755,9 +1764,19 @@ export default function App() {
 
   // ── SAVE HELPERS ────────────────────────────────────────────────────────────
   const saveParticipante = async (p) => {
-    const { error } = await supabase.from('participantes')
-      .upsert({ nombre: p.nombre, password: p.password, pronosticos: p.pronosticos || {} }, { onConflict: 'nombre', ignoreDuplicates: false });
-    if (error) console.error('saveParticipante error:', error);
+    // Primero intentar update para evitar duplicados por mayúsculas/minúsculas
+    const { data: existing } = await supabase.from('participantes')
+      .select('id').ilike('nombre', p.nombre).single();
+    if (existing) {
+      const { error } = await supabase.from('participantes')
+        .update({ password: p.password, pronosticos: p.pronosticos || {} })
+        .eq('id', existing.id);
+      if (error) console.error('saveParticipante update error:', error);
+    } else {
+      const { error } = await supabase.from('participantes')
+        .insert({ nombre: p.nombre, password: p.password, pronosticos: p.pronosticos || {} });
+      if (error) console.error('saveParticipante insert error:', error);
+    }
   };
   const savePartido = async (p) => {
     const { error } = await supabase.from('partidos').upsert(
@@ -1775,9 +1794,15 @@ export default function App() {
 
   // Wrapped setters that also save to Supabase
   const setParticipantesDB = async (fn) => {
-    const next = typeof fn === 'function' ? fn(participantes) : fn;
+    const prev = participantes;
+    const next = typeof fn === 'function' ? fn(prev) : fn;
     setParticipantes(next);
-    for (const p of next) await saveParticipante(p);
+    // Solo guardar participantes que realmente cambiaron
+    for (const p of next) {
+      const old = prev.find(x => x.nombre.toLowerCase() === p.nombre.toLowerCase());
+      const changed = !old || JSON.stringify(old.pronosticos) !== JSON.stringify(p.pronosticos) || old.password !== p.password;
+      if (changed) await saveParticipante(p);
+    }
   };
   const setPartidosDB = async (fn) => {
     const prev = partidos;
