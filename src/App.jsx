@@ -292,9 +292,11 @@ const JornadaTabs = ({ jornadaActiva, setJornadaActiva, partidos, bonus, mode })
 const INCISO = ["A","B","C"];
 const esJornadaFinal = (jid) => jid === "tercero" || jid === "final";
 
-const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) => {
+const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles, jornadasBloqueadas }) => {
   const [jornadaSel, setJornadaSel] = useState(jornadasVisibles[0] || "j1");
   const visiblesActivas = JORNADAS.filter(j => jornadasVisibles.includes(j.id));
+  // Solo mostrar votos reales si la jornada está bloqueada
+  const jornadaBloqueada = jornadasBloqueadas.includes(jornadaSel);
 
   if (visiblesActivas.length === 0) return (
     <div className="text-center py-8 text-zinc-500 text-sm">El organizador aún no ha activado la visibilidad de pronósticos.</div>
@@ -441,7 +443,16 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
                 {/* Celdas de partidos */}
                 {colsPartido.map(part => {
                   const pron = p.pronosticos[part.id];
-                  // Para tercero/final mostrar solo L o V (sin E)
+                  // Si la jornada NO está bloqueada: mostrar ✅ si votó, — si no
+                  if (!jornadaBloqueada) {
+                    return (
+                      <td key={part.id} className="text-center px-1 py-1"
+                        style={{ minWidth:36, border:"1px solid rgba(255,255,255,0.15)", background: pron ? "rgba(0,80,0,0.3)" : "#111" }}>
+                        {pron ? <span style={{ fontSize:14 }}>✅</span> : <span style={{ color:"#555" }}>—</span>}
+                      </td>
+                    );
+                  }
+                  // Jornada bloqueada: mostrar L/E/V con colores
                   const display = esFinal
                     ? (pron === "L" ? "L" : pron === "V" ? "V" : pron ? pron : null)
                     : pron;
@@ -456,6 +467,14 @@ const TablaComparativa = ({ participantes, partidos, bonus, jornadasVisibles }) 
                 {/* Celdas bonus (A/B/C) */}
                 {colsBonus.map(bon => {
                   const pron = p.pronosticos[bon.id];
+                  if (!jornadaBloqueada) {
+                    return (
+                      <td key={bon.id} className="text-center px-1 py-1"
+                        style={{ minWidth:36, border:"1px solid rgba(255,255,255,0.15)", background: pron ? "rgba(0,80,0,0.3)" : "#111" }}>
+                        {pron ? <span style={{ fontSize:14 }}>✅</span> : <span style={{ color:"#555" }}>—</span>}
+                      </td>
+                    );
+                  }
                   const inciso = getBonusInciso(pron, bon.opciones);
                   return (
                     <td key={bon.id} className="text-center px-1 py-1 font-black"
@@ -687,7 +706,7 @@ const ParticipanteCard = ({ p, i }) => {
   );
 };
 
-const TablaView = ({ participantes, partidos, bonus, jornadasVisibles, premioVisible, premioTexto }) => {
+const TablaView = ({ participantes, partidos, bonus, jornadasVisibles, jornadasBloqueadas, premioVisible, premioTexto }) => {
   const [subTab, setSubTab] = useState("comparativa");
   const [pagina, setPagina] = useState(0);
   const POR_PAGINA = 10;
@@ -764,7 +783,7 @@ const TablaView = ({ participantes, partidos, bonus, jornadasVisibles, premioVis
             </button>
           ))}
         </div>
-        {subTab==="comparativa" && <TablaComparativa participantes={participantes} partidos={partidos} bonus={bonus} jornadasVisibles={jornadasVisibles} />}
+        {subTab==="comparativa" && <TablaComparativa participantes={participantes} partidos={partidos} bonus={bonus} jornadasVisibles={jornadasVisibles} jornadasBloqueadas={jornadasBloqueadas} />}
         {subTab==="evolucion" && <Evolucion participantes={participantes} partidos={partidos} bonus={bonus} />}
       </div>
     </div>
@@ -1882,7 +1901,7 @@ export default function App() {
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-4 py-6">
-        {view==="tabla"&&<TablaView participantes={participantes} partidos={partidos} bonus={bonus} jornadasVisibles={jornadasVisibles} premioVisible={premioVisible} premioTexto={premioTexto} />}
+        {view==="tabla"&&<TablaView participantes={participantes} partidos={partidos} bonus={bonus} jornadasVisibles={jornadasVisibles} jornadasBloqueadas={jornadasBloqueadas} premioVisible={premioVisible} premioTexto={premioTexto} />}
         {view==="pronosticos"&&<PronosticosView participantes={participantes} setParticipantes={setParticipantesDB} partidos={partidos} bonus={bonus} jornadasBloqueadas={jornadasBloqueadas} />}
         {view==="admin"&&<AdminView partidos={partidos} setPartidos={setPartidosDB} bonus={bonus} setBonus={setBonusDB} participantes={participantes} setParticipantes={setParticipantesDB} jornadasBloqueadas={jornadasBloqueadas} setJornadasBloqueadas={setJornadasBloqueadasDB} jornadasVisibles={jornadasVisibles} setJornadasVisibles={setJornadasVisiblesDB} premioVisible={premioVisible} setPremioVisible={setPremioVisibleDB} premioTexto={premioTexto} setPremioTexto={setPremioTextooDB} />}
       </div>
