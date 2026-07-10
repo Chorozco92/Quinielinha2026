@@ -521,10 +521,14 @@ const TablaEvolucion = ({ jornadasAcumuladas, participantes, partidos, bonus, jo
 
   const standings = participantes
     .map((p, idx) => {
-      const { total } = calcPuntos(p.pronosticos, partidosHasta, bonusHasta);
-      return { ...p, total, color: COLORS[idx % COLORS.length] };
+      const { total, byJornada } = calcPuntos(p.pronosticos, partidosHasta, bonusHasta);
+      return { ...p, total, byJornada, color: COLORS[idx % COLORS.length] };
     })
-    .sort((a,b) => b.total - a.total);
+    .sort((a,b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      for (const j of JORNADAS) { const d=(b.byJornada[j.id]||0)-(a.byJornada[j.id]||0); if(d!==0) return d; }
+      return 0;
+    });
 
   return (
     <div className="space-y-2 pt-2">
@@ -601,8 +605,9 @@ const Evolucion = ({ participantes, partidos, bonus }) => {
         <Badge color="blue">{jornadasConDatos.length} jornada{jornadasConDatos.length!==1?"s":""} jugada{jornadasConDatos.length!==1?"s":""}</Badge>
       </div>
       <p className="text-xs text-zinc-500">Toca la gráfica en una jornada para ver la clasificación de ese momento</p>
-      <div style={{ height: Math.max(300, participantes.length * 20 + 100), cursor:"pointer" }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="overflow-x-auto thin-scroll" style={{ borderRadius:12, border:"1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ minWidth: Math.max(500, jornadasAcumuladas.length * 120), height: Math.max(420, participantes.length * 22 + 100), cursor:"pointer", padding:"8px 0" }}>
+          <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top:10, right:120, left:30, bottom:10 }} onClick={handleChartClick}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
             <XAxis dataKey="jornada" tick={{ fill:"#a1a1aa", fontSize:11, fontFamily:"'Bebas Neue', cursive" }} />
@@ -653,6 +658,7 @@ const Evolucion = ({ participantes, partidos, bonus }) => {
             ))}
           </LineChart>
         </ResponsiveContainer>
+        </div>
       </div>
 
       <TablaEvolucion jornadasAcumuladas={jornadasAcumuladas} participantes={participantes} partidos={partidos} bonus={bonus} jornadaSelId={jornadaSelId} jornadaSelLabel={jornadaSelLabel} />
